@@ -5,6 +5,7 @@
 import os
 import sys
 
+from fontconfig import Config
 from struct import calcsize, unpack_from
 
 from ..util import lazyproperty
@@ -50,6 +51,8 @@ class FontFiles(object):
             return cls._os_x_font_directories()
         if sys.platform.startswith("win32"):
             return cls._windows_font_directories()
+        if sys.platform.startswith("linux"):
+            return cls._linux_font_directories()
         raise OSError("unsupported operating system")
 
     @classmethod
@@ -68,6 +71,14 @@ class FontFiles(object):
                 path = os.path.abspath(os.path.join(root, filename))
                 with _Font.open(path) as f:
                     yield ((f.family_name, f.is_bold, f.is_italic), path)
+
+    @classmethod
+    def _linux_font_directories(cls):
+        """
+        Return a sequence of directory paths on Linux in which fonts are
+        likely to be located.
+        """
+        return Config.get_font_dirs()
 
     @classmethod
     def _os_x_font_directories(cls):
