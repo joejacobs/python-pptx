@@ -2,10 +2,7 @@
 
 """Objects related to system font file lookup."""
 
-import os
-import sys
-
-from fontconfig import Config
+from find_system_fonts_filename import get_system_fonts_filename
 from struct import calcsize, unpack_from
 
 from ..util import lazyproperty
@@ -36,75 +33,21 @@ class FontFiles(object):
         font descriptor is a (family_name, is_bold, is_italic) 3-tuple.
         """
         fonts = {}
-        for d in cls._font_directories():
-            for key, path in cls._iter_font_files_in(d):
-                fonts[key] = path
+        for key, path in cls._iter_font_files():
+            fonts[key] = path
         return fonts
 
     @classmethod
-    def _font_directories(cls):
-        """
-        Return a sequence of directory paths likely to contain fonts on the
-        current platform.
-        """
-        if sys.platform.startswith("darwin"):
-            return cls._os_x_font_directories()
-        if sys.platform.startswith("win32"):
-            return cls._windows_font_directories()
-        if sys.platform.startswith("linux"):
-            return cls._linux_font_directories()
-        raise OSError("unsupported operating system")
-
-    @classmethod
-    def _iter_font_files_in(cls, directory):
+    def _iter_font_files(cls):
         """
         Generate the OpenType font files found in and under *directory*. Each
         item is a key/value pair. The key is a (family_name, is_bold,
         is_italic) 3-tuple, like ('Arial', True, False), and the value is the
         absolute path to the font file.
         """
-        for root, dirs, files in os.walk(directory):
-            for filename in files:
-                file_ext = os.path.splitext(filename)[1]
-                if file_ext.lower() not in (".otf", ".ttf"):
-                    continue
-                path = os.path.abspath(os.path.join(root, filename))
-                with _Font.open(path) as f:
-                    yield ((f.family_name, f.is_bold, f.is_italic), path)
-
-    @classmethod
-    def _linux_font_directories(cls):
-        """
-        Return a sequence of directory paths on Linux in which fonts are
-        likely to be located.
-        """
-        return Config.get_font_dirs()
-
-    @classmethod
-    def _os_x_font_directories(cls):
-        """
-        Return a sequence of directory paths on a Mac in which fonts are
-        likely to be located.
-        """
-        os_x_font_dirs = [
-            "/Library/Fonts",
-            "/Network/Library/Fonts",
-            "/System/Library/Fonts",
-        ]
-        home = os.environ.get("HOME")
-        if home is not None:
-            os_x_font_dirs.extend(
-                [os.path.join(home, "Library", "Fonts"), os.path.join(home, ".fonts")]
-            )
-        return os_x_font_dirs
-
-    @classmethod
-    def _windows_font_directories(cls):
-        """
-        Return a sequence of directory paths on Windows in which fonts are
-        likely to be located.
-        """
-        return [r"C:\Windows\Fonts"]
+        for path in get_system_fonts_filename():
+            with _Font.open(path) as f:
+                yield ((f.family_name, f.is_bold, f.is_italic), path)
 
 
 class _Font(object):
